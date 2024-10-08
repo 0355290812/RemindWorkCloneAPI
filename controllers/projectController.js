@@ -24,7 +24,7 @@ const createProject = async (req, res) => {
 
 const getProjects = async (req, res) => {
     try {
-        const projects = await Project.find({ 'members.user': req.user.id });
+        const projects = await Project.find({ 'members.user': req.user.id }).populate('members.user');
         res.json(projects);
     } catch (e) {
         console.error(e);
@@ -189,7 +189,7 @@ const getProject = async (req, res) => {
     const { projectId } = req.params;
 
     try {
-        const project = await Project.findById(projectId);
+        const project = await Project.findById(projectId).populate('members.user');
 
         if (!project) {
             return res.status(404).json({ message: 'Project không tìm thấy' });

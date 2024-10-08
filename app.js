@@ -16,9 +16,9 @@ database.connect();
 
 app.use('/auth', authRoutes);
 app.use('/api', protect, apiRoutes);
-// app.use((err, req, res, next) => {
-//     console.log(err)
-//     res.json({ message: `had an error: ${err.message}` })
-// });
+app.use((err, req, res, next) => {
+    console.log(err)
+    res.json({ message: `had an error: ${err.message}` })
+});
 
 module.exports = app;

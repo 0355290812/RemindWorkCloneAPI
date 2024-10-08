@@ -2,7 +2,7 @@ const Task = require('../models/task');
 const Project = require('../models/project');
 
 const createTask = async (req, res) => {
-    const { title, description, projectId } = req.body;
+    const { title, description, projectId, startDate, endDate } = req.body;
 
     try {
         const project = await Project.findById(projectId);
@@ -21,6 +21,8 @@ const createTask = async (req, res) => {
                 action: 'tạo công việc mới',
                 timestamps: new Date()
             }],
+            startDate: startDate ? new Date(startDate) : new Date(),
+            endDate: startDate ? new Date(endDate) : new Date(),
             assigness: [
                 {
                     user: req.user.id,
@@ -38,7 +40,7 @@ const createTask = async (req, res) => {
 
 const updateTask = async (req, res) => {
     const { taskId } = req.params;
-    const { title, description } = req.body;
+    const { title, description, endDate } = req.body;
 
     try {
         const task = await Task.findByIdAndUpdate(taskId);
@@ -48,6 +50,7 @@ const updateTask = async (req, res) => {
 
         task.title = title;
         task.description = description;
+        task.endDate = endDate ? new Date(endDate) : task.endDate;
         task.log.unshift({
             user: req.user.id,
             action: 'cập nhật thông tin công việc',
@@ -102,15 +105,18 @@ const updateTaskStatus = async (req, res) => {
 const getTasks = async (req, res) => {
     const userId = req.user.id;
 
-    console.log(userId);
-
     try {
         const tasks = await Task.find({
             $or: [
                 { user: userId },
                 { 'assigness.user': userId }
             ]
-        });
+        })
+            .populate({ path: 'project', populate: { path: 'members.user' } })
+            .populate('assigness.user')
+            .populate('log.user')
+            .populate('user')
+            .populate('comments.user')
 
         res.json(tasks);
     } catch (e) {
@@ -125,7 +131,12 @@ const getTasksFromProject = async (req, res) => {
     try {
         const tasks = await Task.find({
             project: projectId
-        });
+        })
+            .populate({ path: 'project', populate: { path: 'members.user' } })
+            .populate('assigness.user')
+            .populate('log.user')
+            .populate('user')
+            .populate('comments.user');
 
         res.json(tasks);
     } catch (e) {
@@ -138,7 +149,12 @@ const getTask = async (req, res) => {
     const { taskId } = req.params;
 
     try {
-        const task = await Task.findById(taskId);
+        const task = await Task.findById(taskId)
+            .populate({ path: 'project', populate: { path: 'members.user' } })
+            .populate('assigness.user')
+            .populate('log.user')
+            .populate('user')
+            .populate('comments.user');
 
         if (!task) {
             return res.status(404).json({ message: 'Task không tồn tại' });
@@ -164,7 +180,7 @@ const addAssigneeToTask = async (req, res) => {
             });
         }
 
-        const project = await Project.findById(task.project);
+        const project = await Project.findById(task.project).populate('members.user');
 
         if (!project) {
             return res.status(404).json({
@@ -172,7 +188,7 @@ const addAssigneeToTask = async (req, res) => {
             });
         }
 
-        const isMember = project.members.some(member => member.user.toString() === userId);
+        const isMember = project.members.some(member => member.user._id.toString() === userId);
 
         if (!isMember) {
             return res.status(400).json({
@@ -193,6 +209,12 @@ const addAssigneeToTask = async (req, res) => {
             subTasks: []
         });
 
+        task.log.unshift({
+            user: req.user.id,
+            action: `thêm ${project.members.find(member => member.user._id.toString() === userId).user.email.split('@')[0]} vào công việc`,
+            timestamps: new Date()
+        });
+
         await task.save();
 
         res.status(200).json({
@@ -211,9 +233,11 @@ const addAssigneeToTask = async (req, res) => {
 const addSubTask = async (req, res) => {
     const { taskId, assigneeId } = req.params;
     const { title, dueDate } = req.body;
+    console.log(req.user);
+
 
     try {
-        const task = await Task.findById(taskId);
+        const task = await Task.findById(taskId).populate('assigness.user');
 
         if (!task) {
             return res.status(404).json({
@@ -221,7 +245,7 @@ const addSubTask = async (req, res) => {
             });
         }
 
-        const assignee = task.assigness.find(assign => assign.user.toString() === assigneeId);
+        const assignee = task.assigness.find(assign => assign.user._id.toString() === assigneeId);
 
         if (!assignee) {
             return res.status(404).json({
@@ -232,9 +256,24 @@ const addSubTask = async (req, res) => {
         assignee.subTasks.push({
             title,
             createdAt: new Date(),
-            dueDate: dueDate || null,
+            dueDate: dueDate ? new Date(dueDate) : null,
             completed: false
         });
+
+        if (req.user.id !== assignee.user.toString()) {
+            task.log.unshift({
+                user: req.user.id,
+                action: `thêm đầu việc ${title}`,
+                timestamps: new Date()
+            });
+        } else {
+
+            task.log.unshift({
+                user: req.user.id,
+                action: `thêm đầu việc ${title} cho ${assignee.user.email.split('@')[0]}`,
+                timestamps: new Date()
+            });
+        }
 
         await task.save();
 
@@ -278,6 +317,11 @@ const deleteSubTask = async (req, res) => {
             });
         }
 
+        task.log.unshift({
+            user: req.user.id,
+            action: `xoá đầu việc ${assignee.subTasks[subTaskIndex].title}`,
+            timestamps: new Date()
+        });
         assignee.subTasks.splice(subTaskIndex, 1);
 
         await task.save();
@@ -325,6 +369,11 @@ const toggleSubTaskCompletion = async (req, res) => {
         }
 
         subTask.completed = !subTask.completed;
+        task.log.unshift({
+            user: req.user.id,
+            action: `đánh dấu${subTask.completed ? 'hoàn thành' : 'chưa hoàn thành'} đầu việc ${subTask.title}`,
+            timestamps: new Date()
+        });
 
         await task.save();
 
@@ -372,6 +421,11 @@ const updateSubTask = async (req, res) => {
 
         if (title) subTask.title = title;
         if (dueDate) subTask.dueDate = new Date(dueDate);
+        task.log.unshift({
+            user: req.user.id,
+            action: `cập nhật thông tin đầu việc ${subTask.title}`,
+            timestamps: new Date()
+        });
 
         await task.save();
 
@@ -416,7 +470,7 @@ const deleteMemberFromTask = async (req, res) => {
     const { taskId, assigneeId } = req.params;
 
     try {
-        const task = await Task.findById(taskId);
+        const task = await Task.findById(taskId).populate('assigness.user');
 
         if (!task) {
             return res.status(404).json({
@@ -424,7 +478,7 @@ const deleteMemberFromTask = async (req, res) => {
             });
         }
 
-        const assigneeIndex = task.assigness.findIndex(assign => assign.user.toString() === assigneeId);
+        const assigneeIndex = task.assigness.findIndex(assign => assign.user._id.toString() === assigneeId);
 
         if (assigneeIndex === -1) {
             return res.status(404).json({
@@ -432,6 +486,11 @@ const deleteMemberFromTask = async (req, res) => {
             });
         }
 
+        task.log.unshift({
+            user: req.user.id,
+            action: `xoá ${task.assigness[assigneeIndex].user.email.split('@')[0]} khỏi công việc`,
+            timestamps: new Date()
+        });
         task.assigness.splice(assigneeIndex, 1);
 
         await task.save();
