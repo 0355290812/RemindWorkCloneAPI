@@ -44,6 +44,15 @@ const taskSchema = new mongoose.Schema({
                 type: Boolean,
                 required: true,
                 default: false
+            },
+            toggleAt: {
+                type: Date,
+                required: true
+            },
+            toggleBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+                required: true
             }
         }]
     }],
@@ -85,6 +94,10 @@ const taskSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ['pending', 'in-progress', 'completed', 'paused', 'waiting-for-approval'],
+    },
+    isImportant: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 

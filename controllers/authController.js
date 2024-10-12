@@ -1,5 +1,6 @@
 const User = require('../models/user');
 const { comparePasswords, createJWT, hashPassword } = require('../utils/authUtils');
+const crypto = require('crypto');
 
 const login = async (req, res) => {
     const { email, password } = req.body;
@@ -32,9 +33,15 @@ const register = async (req, res) => {
             return res.status(400).json({ message: 'Nguời dùng đã tồn tại' });
         }
 
+        const trimmedEmail = email.trim().toLowerCase();
+        const hash = crypto.createHash('sha256').update(trimmedEmail).digest('hex');
+        const avatar = `https://www.gravatar.com/avatar/${hash}?d=identicon`;
+
         const user = await User.create({
             email,
             passwordHash: await hashPassword(password),
+            name: email.split('@')[0],
+            avatar: avatar
         });
 
         const token = createJWT(user);

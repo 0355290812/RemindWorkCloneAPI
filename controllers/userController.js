@@ -54,10 +54,36 @@ const getUsers = async (req, res) => {
 }
 
 const getInformation = async (req, res) => {
-    const { id } = req.user.id;
+    const { id } = req.user;
+
     try {
         const user = await User.findById(id).select('-passwordHash');
         res.json(user);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'Đã có lỗi xảy ra' });
+    }
+}
+
+const changeInformation = async (req, res) => {
+    const { name } = req.body;
+    const { id } = req.user;
+
+    try {
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Người dùng không tồn tại' });
+        }
+
+        if (name) user.name = name;
+
+        if (req.file) {
+            user.avatar = req.file.path;
+        }
+
+        await user.save();
+        res.json({ message: 'Cập nhật thông tin thành công', user });
     } catch (e) {
         console.error(e);
         res.status(500).json({ message: 'Đã có lỗi xảy ra' });
@@ -68,5 +94,6 @@ const getInformation = async (req, res) => {
 module.exports = {
     changePassword,
     getUsers,
-    getInformation
+    getInformation,
+    changeInformation
 };

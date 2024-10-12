@@ -10,11 +10,10 @@ const hashPassword = (password) => {
 }
 
 const createJWT = (user) => {
-    const name = user.email.split('@')[0];
     const token = jwt.sign({
         id: user.id,
         email: user.email,
-        name: name
+        name: user.name,
     },
         process.env.JWT_SECRET
     )

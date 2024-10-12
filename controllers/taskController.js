@@ -40,7 +40,7 @@ const createTask = async (req, res) => {
 
 const updateTask = async (req, res) => {
     const { taskId } = req.params;
-    const { title, description, endDate } = req.body;
+    const { title, description, startDate, endDate } = req.body;
 
     try {
         const task = await Task.findByIdAndUpdate(taskId);
@@ -50,6 +50,7 @@ const updateTask = async (req, res) => {
 
         task.title = title;
         task.description = description;
+        task.startDate = startDate ? new Date(startDate) : task.startDate;
         task.endDate = endDate ? new Date(endDate) : task.endDate;
         task.log.unshift({
             user: req.user.id,
@@ -134,6 +135,33 @@ const getTasksFromProject = async (req, res) => {
         })
             .populate({ path: 'project', populate: { path: 'members.user' } })
             .populate('assigness.user')
+            .populate({ path: 'assigness.subTasks.toggleBy', select: 'name' })
+            .populate('log.user')
+            .populate('user')
+            .populate('comments.user');
+
+        res.json(tasks);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'Lỗi khi lấy task' });
+    }
+};
+
+const getMyTasksFromProject = async (req, res) => {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const tasks = await Task.find({
+            project: projectId,
+            $or: [
+                { user: userId },
+                { 'assigness.user': userId }
+            ]
+        })
+            .populate({ path: 'project', populate: { path: 'members.user' } })
+            .populate('assigness.user')
+            .populate({ path: 'assigness.subTasks.toggleBy', select: 'name' })
             .populate('log.user')
             .populate('user')
             .populate('comments.user');
@@ -152,6 +180,7 @@ const getTask = async (req, res) => {
         const task = await Task.findById(taskId)
             .populate({ path: 'project', populate: { path: 'members.user' } })
             .populate('assigness.user')
+            .populate({ path: 'assigness.subTasks.toggleBy', select: 'name' })
             .populate('log.user')
             .populate('user')
             .populate('comments.user');
@@ -211,7 +240,7 @@ const addAssigneeToTask = async (req, res) => {
 
         task.log.unshift({
             user: req.user.id,
-            action: `thêm ${project.members.find(member => member.user._id.toString() === userId).user.email.split('@')[0]} vào công việc`,
+            action: `thêm ${project.members.find(member => member.user._id.toString() === userId).user.name} vào công việc`,
             timestamps: new Date()
         });
 
@@ -233,8 +262,6 @@ const addAssigneeToTask = async (req, res) => {
 const addSubTask = async (req, res) => {
     const { taskId, assigneeId } = req.params;
     const { title, dueDate } = req.body;
-    console.log(req.user);
-
 
     try {
         const task = await Task.findById(taskId).populate('assigness.user');
@@ -257,7 +284,9 @@ const addSubTask = async (req, res) => {
             title,
             createdAt: new Date(),
             dueDate: dueDate ? new Date(dueDate) : null,
-            completed: false
+            completed: false,
+            toggleAt: new Date(),
+            toggleBy: req.user.id
         });
 
         if (req.user.id !== assignee.user.toString()) {
@@ -270,7 +299,7 @@ const addSubTask = async (req, res) => {
 
             task.log.unshift({
                 user: req.user.id,
-                action: `thêm đầu việc ${title} cho ${assignee.user.email.split('@')[0]}`,
+                action: `thêm đầu việc ${title} cho ${assignee.user.name}`,
                 timestamps: new Date()
             });
         }
@@ -369,9 +398,12 @@ const toggleSubTaskCompletion = async (req, res) => {
         }
 
         subTask.completed = !subTask.completed;
+        subTask.toggleAt = new Date();
+        subTask.toggleBy = req.user.id;
+
         task.log.unshift({
             user: req.user.id,
-            action: `đánh dấu${subTask.completed ? 'hoàn thành' : 'chưa hoàn thành'} đầu việc ${subTask.title}`,
+            action: `đánh dấu ${subTask.completed ? 'hoàn thành' : 'chưa hoàn thành'} đầu việc ${subTask.title}`,
             timestamps: new Date()
         });
 
@@ -488,7 +520,7 @@ const deleteMemberFromTask = async (req, res) => {
 
         task.log.unshift({
             user: req.user.id,
-            action: `xoá ${task.assigness[assigneeIndex].user.email.split('@')[0]} khỏi công việc`,
+            action: `xoá ${task.assigness[assigneeIndex].user.name} khỏi công việc`,
             timestamps: new Date()
         });
         task.assigness.splice(assigneeIndex, 1);
@@ -508,6 +540,86 @@ const deleteMemberFromTask = async (req, res) => {
     }
 };
 
+const addCommentToTask = async (req, res) => {
+    const { taskId } = req.params;
+    const { comment } = req.body;
+
+    try {
+        const task = await Task.findById(taskId);
+
+        if (!task) {
+            return res.status(404).json({
+                message: 'Task không tìm thấy'
+            });
+        }
+
+        task.comments.unshift({
+            user: req.user.id,
+            comment,
+            timestamps: new Date()
+        });
+
+        await task.save();
+
+        res.status(200).json({
+            message: 'Đã thêm comment vào task',
+            task
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: 'Có lỗi xảy ra khi thêm comment vào task',
+            error: error.message
+        });
+    }
+}
+
+const markTaskAsImportant = async (req, res) => {
+    const { taskId } = req.params;
+
+    try {
+        const task = await Task.findById(taskId);
+
+        if (!task) {
+            return res.status(404).json({ message: 'Task không tồn tại' });
+        }
+
+        task.isImportant = !task.isImportant;
+        await task.save();
+
+        res.json({ message: 'Cập nhật thành công', task });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Đã có lỗi xảy ra' });
+    }
+};
+
+const deleteCommentFromTask = async (req, res) => {
+    const { taskId, commentId } = req.params;
+
+    try {
+        const task = await Task.findById(taskId);
+
+        if (!task) {
+            return res.status(404).json({ message: 'Task không tồn tại' });
+        }
+
+        const commentIndex = task.comments.findIndex(comment => comment._id.toString() === commentId);
+
+        if (commentIndex === -1) {
+            return res.status(404).json({ message: 'Comment không tồn tại' });
+        }
+
+        task.comments.splice(commentIndex, 1);
+        await task.save();
+
+        res.json({ message: 'Xoá comment thành công', task });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Đã có lỗi xảy ra' });
+    }
+}
+
 module.exports = {
     createTask,
     updateTask,
@@ -521,5 +633,9 @@ module.exports = {
     toggleSubTaskCompletion,
     updateSubTask,
     deleteTask,
-    deleteMemberFromTask
+    deleteMemberFromTask,
+    addCommentToTask,
+    getMyTasksFromProject,
+    markTaskAsImportant,
+    deleteCommentFromTask
 };

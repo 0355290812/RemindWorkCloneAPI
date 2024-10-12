@@ -10,10 +10,6 @@ const projectSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    // task: [{
-    //     type: mongoose.Schema.Types.ObjectId,
-    //     ref: 'Task'
-    // }],
     members: [{
         user: {
             type: mongoose.Schema.Types.ObjectId,
@@ -24,8 +20,14 @@ const projectSchema = new mongoose.Schema({
             type: String,
             required: true,
             enum: ['admin', 'teamlead', 'employee'],
-        }
-    }]
+        },
+        status: {
+            type: String,
+            required: true,
+            enum: ['pending', 'accepted', 'rejected'],
+            default: 'pending',
+        },
+    }],
 }, { timestamps: true });
 
 const Project = mongoose.model('Project', projectSchema);

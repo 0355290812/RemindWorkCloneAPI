@@ -1,4 +1,7 @@
 const Project = require('../models/project');
+const jwt = require('jsonwebtoken');
+const User = require('../models/user');
+const nodemailer = require('nodemailer');
 
 const createProject = async (req, res) => {
     const { title, description } = req.body;
@@ -11,6 +14,7 @@ const createProject = async (req, res) => {
                 {
                     user: req.user.id,
                     role: 'admin',
+                    status: 'accepted'
                 }
             ],
         });
@@ -57,9 +61,9 @@ const updateProject = async (req, res) => {
     }
 };
 
-const addMemberToProject = async (req, res) => {
+const addMembersToProject = async (req, res) => {
     const { projectId } = req.params;
-    const { userId, role = 'employee' } = req.body;
+    const { userIds, role = 'employee' } = req.body;
 
     try {
         const project = await Project.findById(projectId);
@@ -70,29 +74,44 @@ const addMemberToProject = async (req, res) => {
             });
         }
 
-        const userExists = project.members.some(member => member.user.toString() === userId);
+        const membersToAdd = userIds.filter(userId => {
+            return !project.members.some(member => member.user.toString() === userId);
+        });
 
-        if (userExists) {
+        if (membersToAdd.length === 0) {
             return res.status(400).json({
-                message: 'Người dùng đã là thành viên trong dự án này'
+                message: 'Tất cả người dùng đã là thành viên trong dự án này'
             });
         }
 
         const updatedProject = await Project.findByIdAndUpdate(
             projectId,
-            { $addToSet: { members: { user: userId, role } } }, // Thêm thành viên mới
+            {
+                $addToSet: {
+                    members: membersToAdd.map(userId => ({ user: userId, role }))
+                }
+            },
             { new: true }
         );
 
+        for (const userId of membersToAdd) {
+            const token = jwt.sign({ userId, projectId }, process.env.JWT_SECRET, { expiresIn: '1d' });
+            const confirmationLink = `${process.env.HOST}/confirm/${token}`;
+            await sendConfirmationEmail(userId, confirmationLink);
+        }
+
         res.status(200).json({
-            project: updatedProject
+            project: updatedProject,
+            message: `${membersToAdd.length} thành viên đã được thêm vào dự án`
         });
     } catch (error) {
+        console.log(error);
         res.status(500).json({
             message: 'Có lỗi xảy ra trong quá trình thêm thành viên vào project'
         });
     }
 };
+
 
 const updateMemberRoleInProject = async (req, res) => {
     const { projectId, userId } = req.params;
@@ -116,6 +135,12 @@ const updateMemberRoleInProject = async (req, res) => {
             });
         }
 
+        if (project.members[memberIndex].status != 'accepted') {
+            return res.status(400).json({
+                message: 'Người dùng chưa chấp nhận tham gia dự án, không thể phân quyền'
+            });
+        }
+
         project.members[memberIndex].role = role;
         await project.save();
 
@@ -123,14 +148,16 @@ const updateMemberRoleInProject = async (req, res) => {
             project
         });
     } catch (error) {
+        console.error(error);
         res.status(500).json({
             message: 'Có lỗi xảy ra trong quá trình cập nhật quyền thành viên'
         });
     }
 };
 
+
 const removeMemberFromProject = async (req, res) => {
-    const { projectId, userId } = req.params; // Lấy projectId và userId từ params
+    const { projectId, userId } = req.params;
 
     try {
         const project = await Project.findById(projectId);
@@ -202,13 +229,68 @@ const getProject = async (req, res) => {
     }
 }
 
+const sendConfirmationEmail = async (userId, confirmationLink) => {
+    const user = await User.findById(userId);
+    if (!user) throw new Error('User not found');
+
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
+    });
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Xác nhận tham gia dự án',
+        html: `
+            <div style="font-family: Arial, sans-serif; color: #333; padding: 20px; background-color: #f4f4f4;">
+                <h2 style="color: #333;">Chào mừng bạn đến với dự án của chúng tôi!</h2>
+                <p style="font-size: 16px;">Bạn đã được thêm vào một dự án. Vui lòng xác nhận tham gia dự án bằng cách nhấn vào liên kết bên dưới:</p>
+                <a href="${confirmationLink}" style="display: inline-block; padding: 10px 20px; background-color: #1a73e8; color: #fff; text-decoration: none; border-radius: 5px;">Xác nhận Tham gia</a>
+                <p style="font-size: 14px; color: #777;">Nếu bạn không muốn tham gia dự án, bạn có thể bỏ qua email này.</p>
+                <p style="font-size: 12px; color: #999;">Cảm ơn! <br> Đội ngũ phát triển</p>
+            </div>
+        `,
+    };
+
+    await transporter.sendMail(mailOptions);
+};
+
+const confirmMember = async (req, res) => {
+    const { token } = req.params;
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const { userId, projectId } = decoded;
+
+        const project = await Project.findById(projectId);
+        if (!project) return res.status(404).json({ message: 'Project not found' });
+
+        const member = project.members.find(member => member.user.toString() === userId);
+        if (!member) return res.status(404).json({ message: 'Member not found in project' });
+
+        member.status = 'accepted';
+        await project.save();
+
+        return res.status(200).redirect(`${process.env.CLIENT_URL}/home`);
+    } catch (error) {
+        console.error('Error confirming member:', error);
+        return res.status(400).json({ message: 'Invalid or expired token' });
+    }
+};
+
+
 module.exports = {
     getProjects,
     createProject,
     updateProject,
-    addMemberToProject,
+    addMembersToProject,
     updateMemberRoleInProject,
     removeMemberFromProject,
     deleteProject,
-    getProject
+    getProject,
+    confirmMember
 };
