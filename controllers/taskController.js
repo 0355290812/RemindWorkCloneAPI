@@ -2,7 +2,8 @@ const Task = require('../models/task');
 const Project = require('../models/project');
 
 const createTask = async (req, res) => {
-    const { title, description, projectId, startDate, endDate } = req.body;
+    const { title, description, projectId } = req.body;
+    let { startDate, endDate } = req.body;
 
     startDate = startDate ? new Date(startDate) : new Date();
     endDate = endDate ? new Date(endDate) : (startDate.getTime() + 1 * 24 * 60 * 60 * 1000);
