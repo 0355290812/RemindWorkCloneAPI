@@ -22,7 +22,7 @@ const createTask = async (req, res) => {
                 timestamps: new Date()
             }],
             startDate: startDate ? new Date(startDate) : new Date(),
-            endDate: endDate ? new Date(endDate) : new Date() + 1 * 24 * 60 * 60 * 1000,
+            endDate: endDate ? new Date(endDate) : new Date(startDate.getTime() + 1 * 24 * 60 * 60 * 1000),
             assigness: [
                 {
                     user: req.user.id,
