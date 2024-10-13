@@ -4,6 +4,9 @@ const Project = require('../models/project');
 const createTask = async (req, res) => {
     const { title, description, projectId, startDate, endDate } = req.body;
 
+    startDate = startDate ? new Date(startDate) : new Date();
+    endDate = endDate ? new Date(endDate) : (startDate.getTime() + 1 * 24 * 60 * 60 * 1000);
+
     try {
         const project = await Project.findById(projectId);
         if (!project) {
@@ -21,8 +24,8 @@ const createTask = async (req, res) => {
                 action: 'tạo công việc mới',
                 timestamps: new Date()
             }],
-            startDate: startDate ? new Date(startDate) : new Date(),
-            endDate: endDate ? new Date(endDate) : new Date(startDate.getTime() + 1 * 24 * 60 * 60 * 1000),
+            startDate: startDate,
+            endDate: endDate,
             assigness: [
                 {
                     user: req.user.id,
