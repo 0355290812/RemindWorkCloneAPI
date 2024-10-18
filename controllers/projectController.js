@@ -31,13 +31,19 @@ const createProject = async (req, res) => {
 
 const getProjects = async (req, res) => {
     try {
-        const projects = await Project.find({ 'members.user': req.user.id }).populate('members.user');
+        const projects = await Project.find({
+            $or: [
+                { 'members': { $elemMatch: { user: req.user.id, status: 'accepted' } } }
+            ]
+        }).populate('members.user');
+
         res.json(projects);
     } catch (e) {
         console.error(e);
         res.status(500).json({ message: 'Lỗi khi lấy dự án' });
     }
 }
+
 
 const updateProject = async (req, res) => {
     const { projectId } = req.params;
