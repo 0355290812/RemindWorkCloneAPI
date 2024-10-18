@@ -5,13 +5,32 @@ const createTask = async (req, res) => {
     const { title, description, projectId } = req.body;
     let { startDate, endDate } = req.body;
 
-    startDate = startDate ? new Date(startDate) : new Date();
-    endDate = endDate ? new Date(endDate) : (startDate.getTime() + 1 * 24 * 60 * 60 * 1000);
-
     try {
         const project = await Project.findById(projectId);
         if (!project) {
             return res.status(404).json({ message: 'Dự án không tồn tại' });
+        }
+
+        const isPermission = project.members.some(member => member.user.toString() === req.user.id && member.role !== 'employee');
+
+        if (!isPermission) {
+            return res.status(403).json({ message: 'Bạn không có quyền tạo công việc trong dự án này' });
+        }
+
+        if (startDate && startDate < project.startDate) {
+            return res.status(400).json({ message: 'Ngày bắt đầu công việc không thể nhỏ hơn ngày bắt đầu dự án' });
+        } else if (!startDate) {
+            startDate = project.startDate;
+        }
+
+        if (endDate && endDate > project.endDate) {
+            return res.status(400).json({ message: 'Ngày kết thúc công việc không thể lớn hơn ngày kết thúc dự án' });
+        } else if (!endDate) {
+            endDate = project.endDate;
+        }
+
+        if (new Date(startDate) > new Date(endDate)) {
+            return res.status(400).json({ message: 'Ngày bắt đầu công việc không thể lớn hơn ngày kết thúc công việc' });
         }
 
         const task = await Task.create({
@@ -52,10 +71,34 @@ const updateTask = async (req, res) => {
             return res.status(404).json({ message: 'Task không tồn tại' });
         }
 
+        const project = await Project.findById(task.project);
+
+        if (!project) {
+            return res.status(404).json({ message: 'Dự án không tồn tại' });
+        }
+
+        const isPermission = project.members.some(member => member.user.toString() === req.user.id && member.role !== 'employee');
+
+        if (!isPermission) {
+            return res.status(403).json({ message: 'Bạn không có quyền cập nhật công việc trong dự án này' });
+        }
+
+        if (startDate && startDate < project.startDate) {
+            return res.status(400).json({ message: 'Ngày bắt đầu công việc không thể nhỏ hơn ngày bắt đầu dự án' });
+        } else if (!startDate) {
+            startDate = task.startDate;
+        }
+
+        if (endDate && endDate > project.endDate) {
+            return res.status(400).json({ message: 'Ngày kết thúc công việc không thể lớn hơn ngày kết thúc dự án' });
+        } else if (!endDate) {
+            endDate = task.endDate;
+        }
+
         task.title = title;
         task.description = description;
-        task.startDate = startDate ? new Date(startDate) : task.startDate;
-        task.endDate = endDate ? new Date(endDate) : task.endDate;
+        task.startDate = new Date(startDate);
+        task.endDate = new Date(endDate);
         task.log.unshift({
             user: req.user.id,
             action: 'cập nhật thông tin công việc',
@@ -281,6 +324,12 @@ const addSubTask = async (req, res) => {
         if (!assignee) {
             return res.status(404).json({
                 message: 'Người dùng không được assign cho task này'
+            });
+        }
+
+        if (dueDate && new Date(dueDate) > task.endDate) {
+            return res.status(400).json({
+                message: 'Ngày hết hạn của subtask không thể lớn hơn ngày kết thúc của task'
             });
         }
 

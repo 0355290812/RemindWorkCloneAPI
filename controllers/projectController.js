@@ -2,9 +2,10 @@ const Project = require('../models/project');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const nodemailer = require('nodemailer');
+const Task = require('../models/task');
 
 const createProject = async (req, res) => {
-    const { title, description } = req.body;
+    const { title, description, startDate, endDate } = req.body;
 
     try {
         const project = await Project.create({
@@ -17,6 +18,8 @@ const createProject = async (req, res) => {
                     status: 'accepted'
                 }
             ],
+            startDate: startDate ? new Date(startDate) : new Date(),
+            endDate: endDate ? new Date(endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         });
 
         res.json(project);
@@ -38,12 +41,27 @@ const getProjects = async (req, res) => {
 
 const updateProject = async (req, res) => {
     const { projectId } = req.params;
-    const { title, description } = req.body;
+    const { title, description, startDate, endDate } = req.body;
 
     try {
+        const tasks = await Task.find({ project: projectId });
+
+        for (let task of tasks) {
+            if (endDate && new Date(task.endDate) > new Date(endDate)) {
+                return res.status(400).json({
+                    message: 'Ngày kết thúc dự án không thể nhỏ hơn ngày kết thúc công việc'
+                });
+            }
+            if (startDate && new Date(task.startDate) > new Date(startDate)) {
+                return res.status(400).json({
+                    message: 'Ngày bắt đầu dự án không thể nhỏ hơn ngày bắt đầu công việc'
+                });
+            }
+        }
+
         const updatedProject = await Project.findByIdAndUpdate(
             projectId,
-            { title, description },
+            { title, description, startDate, endDate },
             { new: true }
         );
 
@@ -56,7 +74,8 @@ const updateProject = async (req, res) => {
         res.status(200).json(updatedProject);
     } catch (error) {
         res.status(500).json({
-            message: 'Có lỗi xảy ra trong quá trình cập nhật project'
+            message: 'Có lỗi xảy ra trong quá trình cập nhật project',
+            error: error.message
         });
     }
 };
@@ -97,7 +116,7 @@ const addMembersToProject = async (req, res) => {
         for (const userId of membersToAdd) {
             const token = jwt.sign({ userId, projectId }, process.env.JWT_SECRET, { expiresIn: '1d' });
             const confirmationLink = `${process.env.HOST}/confirm/${token}`;
-            await sendConfirmationEmail(userId, confirmationLink);
+            sendConfirmationEmail(userId, confirmationLink);
         }
 
         res.status(200).json({
@@ -267,10 +286,10 @@ const confirmMember = async (req, res) => {
         const { userId, projectId } = decoded;
 
         const project = await Project.findById(projectId);
-        if (!project) return res.status(404).json({ message: 'Project not found' });
+        if (!project) return res.status(404).json({ message: 'Không tìm thấy dự án' });
 
         const member = project.members.find(member => member.user.toString() === userId);
-        if (!member) return res.status(404).json({ message: 'Member not found in project' });
+        if (!member) return res.status(404).json({ message: 'Người dùng đã được xoá khỏi dự án' });
 
         member.status = 'accepted';
         await project.save();

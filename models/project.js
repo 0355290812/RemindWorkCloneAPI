@@ -28,6 +28,14 @@ const projectSchema = new mongoose.Schema({
             default: 'pending',
         },
     }],
+    startDate: {
+        type: Date,
+        required: true
+    },
+    endDate: {
+        type: Date,
+        required: true
+    },
 }, { timestamps: true });
 
 const Project = mongoose.model('Project', projectSchema);

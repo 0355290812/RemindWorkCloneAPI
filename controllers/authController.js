@@ -1,4 +1,6 @@
 const User = require('../models/user');
+const Task = require('../models/task');
+const Project = require('../models/project');
 const { comparePasswords, createJWT, hashPassword } = require('../utils/authUtils');
 const crypto = require('crypto');
 
@@ -42,6 +44,35 @@ const register = async (req, res) => {
             passwordHash: await hashPassword(password),
             name: email.split('@')[0],
             avatar: avatar
+        });
+
+        const project = await Project.create({
+            title: 'Dự án mẫu',
+            description: 'Đây là dự án mẫu để làm quen với ứng dụng',
+            members: [{ user: user._id, role: 'admin', status: 'accepted' }],
+            startDate: new Date(),
+            endDate: new Date(new Date().setDate(new Date().getDate() + 7))
+        });
+
+        const task = await Task.create({
+            title: 'Công việc mẫu',
+            user: user._id,
+            description: 'Đây là công việc mẫu để làm quen với ứng dụng',
+            startDate: new Date(),
+            endDate: new Date(new Date().setDate(new Date().getDate() + 6)),
+            assigness: [{
+                user: user._id, subTasks: [
+                    { title: 'Công việc phụ mẫu', createdAt: new Date(), completed: false, toggleAt: new Date(), toggleBy: user._id }
+                ]
+            }],
+            comments: [],
+            logs: [{
+                user: user._id,
+                action: 'tạo công việc',
+                timestamps: new Date()
+            }],
+            project: project._id,
+            status: 'pending'
         });
 
         const token = createJWT(user);
