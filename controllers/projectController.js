@@ -201,6 +201,14 @@ const removeMemberFromProject = async (req, res) => {
             });
         }
 
+        const countAdmins = project.members.filter(member => member.role === 'admin').length;
+
+        if (project.members[memberIndex].role === 'admin' && countAdmins === 1) {
+            return res.status(400).json({
+                message: 'Không thể xoá trưởng dự án cuối cùng'
+            });
+        }
+
         project.members.splice(memberIndex, 1);
         await project.save();
 
