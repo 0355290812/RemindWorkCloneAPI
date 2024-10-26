@@ -98,7 +98,17 @@ const taskSchema = new mongoose.Schema({
     isImportant: {
         type: Boolean,
         default: false
-    }
+    },
+    files: [{
+        name: {
+            type: String,
+            required: true
+        },
+        url: {
+            type: String,
+            required: true
+        }
+    }],
 }, { timestamps: true });
 
 const Task = mongoose.model('Task', taskSchema);

@@ -61,12 +61,13 @@ const register = async (req, res) => {
             startDate: new Date(),
             endDate: new Date(new Date().setDate(new Date().getDate() + 6)),
             assigness: [{
-                user: user._id, subTasks: [
+                user: user._id,
+                subTasks: [
                     { title: 'Công việc phụ mẫu', createdAt: new Date(), completed: false, toggleAt: new Date(), toggleBy: user._id, dueDate: null }
                 ]
             }],
             comments: [],
-            logs: [{
+            log: [{
                 user: user._id,
                 action: 'tạo công việc',
                 timestamps: new Date()

@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const nodemailer = require('nodemailer');
 const Task = require('../models/task');
+const { sendNotificationFS, sendNotificationToMultipleUsers } = require('../utils/firebaseUtils');
 
 const createProject = async (req, res) => {
     const { title, description, startDate, endDate } = req.body;
@@ -123,6 +124,23 @@ const addMembersToProject = async (req, res) => {
             const token = jwt.sign({ userId, projectId }, process.env.JWT_SECRET, { expiresIn: '1d' });
             const confirmationLink = `${process.env.HOST}/confirm/${token}`;
             sendConfirmationEmail(userId, confirmationLink);
+            const user = await User.findById(userId);
+
+            if (user.deviceToken) {
+                sendNotificationFS(
+                    userName = req.user.name,
+                    body = `đã mời bạn vào dự án ${project.title}`,
+                    avatar = req.user.avatar,
+                    to = user._id.toString(),
+                    activeLink = `${process.env.CLIENT_URL}/projects/${project._id}`
+                );
+
+                sendNotificationToMultipleUsers([user.deviceToken], {
+                    userName: req.user.name,
+                    body: `đã mời bạn vào dự án ${project.title}`,
+                    avatar: req.user.avatar,
+                });
+            }
         }
 
         res.status(200).json({
@@ -169,6 +187,22 @@ const updateMemberRoleInProject = async (req, res) => {
         project.members[memberIndex].role = role;
         await project.save();
 
+        const user = await User.findById(userId);
+
+        sendNotificationFS(
+            userName = req.user.name,
+            body = `đã cập nhật quyền của bạn trong dự án ${project.title} thành ${role === 'admin' ? 'trưởng dự án' : (role === 'teamlead' ? 'trưởng nhóm' : 'nhân viên')}`,
+            avatar = req.user.avatar,
+            to = user._id.toString(),
+            activeLink = `${process.env.CLIENT_URL}/projects/${project._id}`
+        );
+
+        sendNotificationToMultipleUsers([user.deviceToken], {
+            userName: req.user.name,
+            body: `đã cập nhật quyền của bạn trong dự án ${project.title} thành ${role === 'admin' ? 'trưởng dự án' : (role === 'teamlead' ? 'trưởng nhóm' : 'nhân viên')}`,
+            avatar: req.user.avatar,
+        });
+
         res.status(200).json({
             project
         });
@@ -211,6 +245,22 @@ const removeMemberFromProject = async (req, res) => {
 
         project.members.splice(memberIndex, 1);
         await project.save();
+
+        const user = await User.findById(userId);
+
+        sendNotificationFS(
+            userName = req.user.name,
+            body = `đã xoá bạn khỏi dự án ${project.title}`,
+            avatar = req.user.avatar,
+            to = user._id.toString(),
+            activeLink = `${process.env.CLIENT_URL}/home`
+        );
+
+        sendNotificationToMultipleUsers([user.deviceToken], {
+            userName: req.user.name,
+            body: `đã xoá bạn khỏi dự án ${project.title}`,
+            avatar: req.user.avatar,
+        });
 
         res.status(200).json({
             message: 'Người dùng đã được xóa khỏi dự án',

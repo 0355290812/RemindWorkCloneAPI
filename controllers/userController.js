@@ -90,10 +90,27 @@ const changeInformation = async (req, res) => {
     }
 }
 
+const updateDeviceToken = async (deviceToken) => {
+    try {
+        const id = req.user.id;
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Người dùng không tồn tại' });
+        }
+
+        user.deviceToken = deviceToken;
+        await user.save();
+    }
+    catch (e) {
+        console.error(e);
+    }
+}
 
 module.exports = {
     changePassword,
     getUsers,
     getInformation,
-    changeInformation
+    changeInformation,
+    updateDeviceToken
 };

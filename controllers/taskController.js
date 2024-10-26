@@ -1,17 +1,21 @@
 const Task = require('../models/task');
 const Project = require('../models/project');
+const path = require('path');
+const fs = require('fs');
+const User = require('../models/user');
+const { sendNotificationToMultipleUsers, sendNotificationFS } = require('../utils/firebaseUtils');
 
 const createTask = async (req, res) => {
     const { title, description, projectId } = req.body;
     let { startDate, endDate } = req.body;
 
     try {
-        const project = await Project.findById(projectId);
+        const project = await Project.findById(projectId).populate('members.user');
         if (!project) {
             return res.status(404).json({ message: 'Dự án không tồn tại' });
         }
 
-        const isPermission = project.members.some(member => member.user.toString() === req.user.id && member.role !== 'employee');
+        const isPermission = project.members.some(member => member.user._id.toString() === req.user.id && member.role !== 'employee');
 
         if (!isPermission) {
             return res.status(403).json({ message: 'Bạn không có quyền tạo công việc trong dự án này' });
@@ -53,6 +57,29 @@ const createTask = async (req, res) => {
                 }
             ]
         });
+        const user = await User.findById(req.user.id);
+
+        const listAdmin = project.members.filter(member => member.role === 'admin' && member.user._id.toString() !== req.user.id && member.status === 'accepted');
+
+        if (listAdmin.length > 0) {
+            listAdmin.forEach(admin => {
+                sendNotificationFS(
+                    userName = user.name,
+                    body = `đã tạo công việc mới trong dự án ${project.title}`,
+                    avatar = user.avatar,
+                    to = admin.user._id.toString(),
+                    activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+                )
+            });
+
+            const tokens = listAdmin.map(admin => admin.user.deviceToken);
+
+            sendNotificationToMultipleUsers(tokens, {
+                userName: user.name,
+                body: `đã tạo công việc mới trong dự án ${project.title}`,
+                avatar: user.avatar,
+            });
+        }
 
         res.json(task);
     } catch (e) {
@@ -120,11 +147,134 @@ const updateTaskStatus = async (req, res) => {
     const userId = req.user.id;
 
     try {
-        const task = await Task.findById(taskId);
+        const task = await Task.findById(taskId).populate('assigness.user');
 
         if (!task) {
             return res.status(404).json({
                 message: 'Task không tìm thấy'
+            });
+        }
+
+        const members = task.assigness.filter(assignee => assignee.user._id.toString() !== userId);
+        const tokens = members.map(member => member.user.deviceToken);
+
+        if (task.status === 'pending') {
+            members.forEach(member => {
+                sendNotificationFS(
+                    userName = req.user.name,
+                    body = `đã chuyển trạng thái công việc ${task.title} thành đang thưc hiện`,
+                    avatar = req.user.avatar,
+                    to = member.user.toString(),
+                    activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+                );
+
+                sendNotificationToMultipleUsers(tokens, {
+                    userName: req.user.name,
+                    body: `đã chuyển trạng thái công việc ${task.title} thành đang thưc hiện`,
+                    avatar: req.user.avatar,
+                });
+            });
+        } else if (task.status === 'in-progress') {
+            if (status === 'waiting-for-approval') {
+                members.forEach(member => {
+                    sendNotificationFS(
+                        userName = req.user.name,
+                        body = `đã chuyển trạng thái công việc ${task.title} thành chờ phê duyệt hoàn thành`,
+                        avatar = req.user.avatar,
+                        to = member.user.toString(),
+                        activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+                    );
+
+                    sendNotificationToMultipleUsers(tokens, {
+                        userName: req.user.name,
+                        body: `đã chuyển trạng thái công việc ${task.title} thành chờ phê duyệt hoàn thành`,
+                        avatar: req.user.avatar,
+                    });
+                });
+            } else if (status === 'completed') {
+                members.forEach(member => {
+                    sendNotificationFS(
+                        userName = req.user.name,
+                        body = `đã đánh dấu công việc ${task.title} hoàn thành`,
+                        avatar = req.user.avatar,
+                        to = member.user.toString(),
+                        activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+                    );
+
+                    sendNotificationToMultipleUsers(tokens, {
+                        userName: req.user.name,
+                        body: `đã đánh dấu công việc ${task.title} hoàn thành`,
+                        avatar: req.user.avatar,
+                    });
+                });
+            }
+        } else if (task.status === 'waiting-for-approval') {
+            if (status === 'completed') {
+                members.forEach(member => {
+                    sendNotificationFS(
+                        userName = req.user.name,
+                        body = `đã duyệt công việc ${task.title} hoàn thành`,
+                        avatar = req.user.avatar,
+                        to = member.user.toString(),
+                        activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+                    );
+
+                    sendNotificationToMultipleUsers(tokens, {
+                        userName: req.user.name,
+                        body: `đã duyệt công việc ${task.title} hoàn thành`,
+                        avatar: req.user.avatar,
+                    });
+                });
+            } else if (status === 'in-progress') {
+                members.forEach(member => {
+                    sendNotificationFS(
+                        userName = req.user.name,
+                        body = `đã yêu cầu làm lại công việc ${task.title}`,
+                        avatar = req.user.avatar,
+                        to = member.user.toString(),
+                        activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+                    );
+
+                    sendNotificationToMultipleUsers(tokens, {
+                        userName: req.user.name,
+                        body: `đã yêu cầu làm lại công việc ${task.title}`,
+                        avatar: req.user.avatar,
+                    });
+                });
+            }
+        } else if (task.status === 'completed') {
+            if (status === 'in-progress') {
+                members.forEach(member => {
+                    sendNotificationFS(
+                        userName = req.user.name,
+                        body = `đã yêu cầu làm lại công việc ${task.title}`,
+                        avatar = req.user.avatar,
+                        to = member.user.toString(),
+                        activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+                    );
+
+                    sendNotificationToMultipleUsers(tokens, {
+                        userName: req.user.name,
+                        body: `đã yêu cầu làm lại công việc ${task.title}`,
+                        avatar: req.user.avatar,
+                    });
+                });
+            }
+        } else if (status === 'paused') {
+            members.forEach(member => {
+                sendNotificationFS(
+                    userName = req.user.name,
+                    body = `đã tạm dừng công việc ${task.title}`,
+                    avatar = req.user.avatar,
+                    to = member.user.toString(),
+                    activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+                );
+
+                sendNotificationToMultipleUsers(tokens, {
+                    userName: req.user.name,
+                    body: `đã tạm dừng công việc ${task.title}`,
+                    avatar: req.user.avatar,
+                });
             });
         }
 
@@ -293,6 +443,22 @@ const addAssigneeToTask = async (req, res) => {
 
         await task.save();
 
+        const user = await User.findById(req.user.id);
+
+        sendNotificationFS(
+            userName = user.name,
+            body = `đã thêm bạn vào công việc ${task.title}`,
+            avatar = user.avatar,
+            to = userId,
+            activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+        );
+
+        sendNotificationToMultipleUsers([user.deviceToken], {
+            userName: user.name,
+            body: `đã thêm bạn vào công việc ${task.title}`,
+            avatar: user.avatar,
+        });
+
         res.status(200).json({
             task,
             message: 'Đã thêm người vào assigness của task'
@@ -425,7 +591,7 @@ const toggleSubTaskCompletion = async (req, res) => {
     const { taskId, assigneeId, subTaskId } = req.params;
 
     try {
-        const task = await Task.findById(taskId);
+        const task = await Task.findById(taskId).populate('user');
 
         if (!task) {
             return res.status(404).json({
@@ -461,6 +627,22 @@ const toggleSubTaskCompletion = async (req, res) => {
         });
 
         await task.save();
+
+        if (req.user.id !== task.user._id.toString()) {
+            sendNotificationFS(
+                userName = req.user.name,
+                body = `đã đánh dấu ${subTask.completed ? 'hoàn thành' : 'chưa hoàn thành'} đầu việc ${subTask.title}`,
+                avatar = req.user.avatar,
+                to = task.user._id.toString(),
+                activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+            );
+
+            sendNotificationToMultipleUsers([task.user.deviceToken], {
+                userName: req.user.name,
+                body: `đã đánh dấu ${subTask.completed ? 'hoàn thành' : 'chưa hoàn thành'} đầu việc ${subTask.title}`,
+                avatar: req.user.avatar,
+            });
+        }
 
         res.status(200).json({
             message: `Subtask đã được ${subTask.completed ? 'hoàn thành' : 'chưa hoàn thành'}`,
@@ -598,7 +780,7 @@ const addCommentToTask = async (req, res) => {
     const { comment } = req.body;
 
     try {
-        const task = await Task.findById(taskId);
+        const task = await Task.findById(taskId).populate('assigness.user');
 
         if (!task) {
             return res.status(404).json({
@@ -610,6 +792,25 @@ const addCommentToTask = async (req, res) => {
             user: req.user.id,
             comment,
             timestamps: new Date()
+        });
+
+        const members = task.assigness.filter(assignee => assignee.user._id.toString() !== req.user.id);
+        const tokens = members.map(member => member.user.deviceToken);
+
+        members.forEach(member => {
+            sendNotificationFS(
+                userName = req.user.name,
+                body = `đã bình luận trong công việc ${task.title}`,
+                avatar = req.user.avatar,
+                to = member.user.toString(),
+                activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+            );
+
+            sendNotificationToMultipleUsers(tokens, {
+                userName: req.user.name,
+                body: `đã bình luận trong công việc ${task.title}`,
+                avatar: req.user.avatar,
+            });
         });
 
         await task.save();
@@ -673,6 +874,64 @@ const deleteCommentFromTask = async (req, res) => {
     }
 }
 
+const uploadFilesToTask = async (req, res) => {
+    const { taskId } = req.params;
+
+    const files = req.files.map(file => {
+        return {
+            name: file.originalname,
+            url: file.path
+        }
+    }
+    );
+
+    try {
+        const task = await Task.findById(taskId);
+
+        if (!task) {
+            return res.status(404).json({ message: 'Task không tồn tại' });
+        }
+
+        task.files = task.files.concat(files);
+        await task.save();
+
+        res.json({ message: 'Tải file lên task thành công', task });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Đã có lỗi xảy ra' });
+    }
+}
+
+const deleteFileFromTask = async (req, res) => {
+    const { taskId, fileId } = req.params;
+
+    try {
+        const task = await Task.findById(taskId);
+
+        if (!task) {
+            return res.status(404).json({ message: 'Task không tồn tại' });
+        }
+
+        const fileIndex = task.files.findIndex(file => file._id.toString() === fileId);
+
+        if (fileIndex === -1) {
+            return res.status(404).json({ message: 'File không tồn tại' });
+        }
+
+        const filePath = task.files[fileIndex].url;
+        fs.unlinkSync(path.join(__dirname, '..', filePath));
+        task.files.splice(fileIndex, 1);
+        await task.save();
+
+        res.json({ message: 'Xoá file thành công', task });
+
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Đã có lỗi xảy ra' });
+    }
+};
+
 module.exports = {
     createTask,
     updateTask,
@@ -690,5 +949,7 @@ module.exports = {
     addCommentToTask,
     getMyTasksFromProject,
     markTaskAsImportant,
-    deleteCommentFromTask
+    deleteCommentFromTask,
+    uploadFilesToTask,
+    deleteFileFromTask
 };
