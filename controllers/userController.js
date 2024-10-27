@@ -90,10 +90,11 @@ const changeInformation = async (req, res) => {
     }
 }
 
-const updateDeviceToken = async (deviceToken) => {
+const updateDeviceToken = async (req, res) => {
     try {
-        const id = req.user.id;
+        const { id } = req.user;
         const user = await User.findById(id);
+        const { deviceToken } = req.body;
 
         if (!user) {
             return res.status(404).json({ message: 'Người dùng không tồn tại' });
@@ -101,6 +102,7 @@ const updateDeviceToken = async (deviceToken) => {
 
         user.deviceToken = deviceToken;
         await user.save();
+        res.json({ message: 'Cập nhật device token thành công' });
     }
     catch (e) {
         console.error(e);
