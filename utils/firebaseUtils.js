@@ -1,27 +1,22 @@
 const { admin, db } = require('../config/firebase');
 
 const sendNotificationToMultipleUsers = async (deviceTokens, notificationPayload, dataPayload = {}) => {
-    const messages = deviceTokens.map(token => ({
-        token,
-        notification: notificationPayload,
-        data: dataPayload
-    }));
 
     try {
-        const response = await admin.messaging().sendEach(messages);
-        console.log(`${response.successCount} notifications were sent successfully`);
-
-        if (response.failureCount > 0) {
-            const failedTokens = [];
-            response.responses.forEach((resp, idx) => {
-                if (!resp.success) {
-                    failedTokens.push(deviceTokens[idx]);
-                }
-            });
-            console.log('Failed tokens:', failedTokens);
+        if (deviceTokens.length === 0) {
+            console.log('No device tokens provided');
+            return;
         }
+        deviceTokens.forEach(async (token) => {
+            await admin.messaging().send({
+                token: token,
+                notification: notificationPayload,
+                data: dataPayload
+            })
+        })
     } catch (error) {
-        console.error('Error sending notifications:', error);
+        console.log('Error sending notification', error);
+
     }
 };
 
@@ -38,6 +33,8 @@ const sendNotificationFS = async (userName, body, avatar, to, activeLink) => {
 
     try {
         await db.collection('notifications').add(notificationData);
+        console.log('Notification added successfully');
+
     } catch (error) {
         console.error('Error adding notification: ', error);
     }

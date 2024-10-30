@@ -136,6 +136,9 @@ const addMembersToProject = async (req, res) => {
                 );
 
                 sendNotificationToMultipleUsers([user.deviceToken], {
+                    title: req.user.name,
+                    body: `đã mời bạn vào dự án ${project.title}`,
+                }, {
                     userName: req.user.name,
                     body: `đã mời bạn vào dự án ${project.title}`,
                     avatar: req.user.avatar,
@@ -198,6 +201,9 @@ const updateMemberRoleInProject = async (req, res) => {
         );
 
         sendNotificationToMultipleUsers([user.deviceToken], {
+            title: req.user.name,
+            body: `đã cập nhật quyền của bạn trong dự án ${project.title} thành ${role === 'admin' ? 'trưởng dự án' : (role === 'teamlead' ? 'trưởng nhóm' : 'nhân viên')}`,
+        }, {
             userName: req.user.name,
             body: `đã cập nhật quyền của bạn trong dự án ${project.title} thành ${role === 'admin' ? 'trưởng dự án' : (role === 'teamlead' ? 'trưởng nhóm' : 'nhân viên')}`,
             avatar: req.user.avatar,
@@ -257,6 +263,9 @@ const removeMemberFromProject = async (req, res) => {
         );
 
         sendNotificationToMultipleUsers([user.deviceToken], {
+            title: req.user.name,
+            body: `đã xoá bạn khỏi dự án ${project.title}`,
+        }, {
             userName: req.user.name,
             body: `đã xoá bạn khỏi dự án ${project.title}`,
             avatar: req.user.avatar,
@@ -313,22 +322,23 @@ const getProject = async (req, res) => {
 }
 
 const sendConfirmationEmail = async (userId, confirmationLink) => {
-    const user = await User.findById(userId);
-    if (!user) throw new Error('User not found');
+    try {
+        const user = await User.findById(userId);
+        if (!user) throw new Error('User not found');
 
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-        },
-    });
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        });
 
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: 'Xác nhận tham gia dự án',
-        html: `
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: 'Xác nhận tham gia dự án',
+            html: `
             <div style="font-family: Arial, sans-serif; color: #333; padding: 20px; background-color: #f4f4f4;">
                 <h2 style="color: #333;">Chào mừng bạn đến với dự án của chúng tôi!</h2>
                 <p style="font-size: 16px;">Bạn đã được thêm vào một dự án. Vui lòng xác nhận tham gia dự án bằng cách nhấn vào liên kết bên dưới:</p>
@@ -337,9 +347,12 @@ const sendConfirmationEmail = async (userId, confirmationLink) => {
                 <p style="font-size: 12px; color: #999;">Cảm ơn! <br> Đội ngũ phát triển</p>
             </div>
         `,
-    };
+        };
 
-    await transporter.sendMail(mailOptions);
+        await transporter.sendMail(mailOptions);
+    } catch (error) {
+        console.error('Error sending confirmation email:', error);
+    }
 };
 
 const confirmMember = async (req, res) => {

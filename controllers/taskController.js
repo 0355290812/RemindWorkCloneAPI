@@ -75,6 +75,9 @@ const createTask = async (req, res) => {
             const tokens = listAdmin.map(admin => admin.user.deviceToken);
 
             sendNotificationToMultipleUsers(tokens, {
+                title: user.name,
+                body: `đã tạo công việc mới trong dự án ${project.title}`,
+            }, {
                 userName: user.name,
                 body: `đã tạo công việc mới trong dự án ${project.title}`,
                 avatar: user.avatar,
@@ -148,6 +151,7 @@ const updateTaskStatus = async (req, res) => {
 
     try {
         const task = await Task.findById(taskId).populate('assigness.user');
+        const user = await User.findById(userId);
 
         if (!task) {
             return res.status(404).json({
@@ -158,20 +162,42 @@ const updateTaskStatus = async (req, res) => {
         const members = task.assigness.filter(assignee => assignee.user._id.toString() !== userId);
         const tokens = members.map(member => member.user.deviceToken);
 
-        if (task.status === 'pending') {
+        if (status === 'paused') {
             members.forEach(member => {
                 sendNotificationFS(
                     userName = req.user.name,
-                    body = `đã chuyển trạng thái công việc ${task.title} thành đang thưc hiện`,
-                    avatar = req.user.avatar,
-                    to = member.user.toString(),
+                    body = `đã tạm dừng công việc ${task.title}`,
+                    avatar = user.avatar,
+                    to = member.user._id.toString(),
                     activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                 );
 
                 sendNotificationToMultipleUsers(tokens, {
+                    title: req.user.name,
+                    body: `đã tạm dừng công việc ${task.title}`,
+                }, {
+                    userName: req.user.name,
+                    body: `đã tạm dừng công việc ${task.title}`,
+                    avatar: user.avatar,
+                });
+            });
+        } else if (task.status === 'pending') {
+            members.forEach(member => {
+                sendNotificationFS(
+                    userName = req.user.name,
+                    body = `đã chuyển trạng thái công việc ${task.title} thành đang thưc hiện`,
+                    avatar = user.avatar,
+                    to = member.user._id.toString(),
+                    activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+                );
+
+                sendNotificationToMultipleUsers(tokens, {
+                    title: req.user.name,
+                    body: `đã chuyển trạng thái công việc ${task.title} thành đang thưc hiện`,
+                }, {
                     userName: req.user.name,
                     body: `đã chuyển trạng thái công việc ${task.title} thành đang thưc hiện`,
-                    avatar: req.user.avatar,
+                    avatar: user.avatar,
                 });
             });
         } else if (task.status === 'in-progress') {
@@ -180,31 +206,37 @@ const updateTaskStatus = async (req, res) => {
                     sendNotificationFS(
                         userName = req.user.name,
                         body = `đã chuyển trạng thái công việc ${task.title} thành chờ phê duyệt hoàn thành`,
-                        avatar = req.user.avatar,
-                        to = member.user.toString(),
+                        avatar = user.avatar,
+                        to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
 
                     sendNotificationToMultipleUsers(tokens, {
+                        title: req.user.name,
+                        body: `đã chuyển trạng thái công việc ${task.title} thành chờ phê duyệt hoàn thành`,
+                    }, {
                         userName: req.user.name,
                         body: `đã chuyển trạng thái công việc ${task.title} thành chờ phê duyệt hoàn thành`,
-                        avatar: req.user.avatar,
-                    });
+                        avatar: user.avatar,
+                    }, {});
                 });
             } else if (status === 'completed') {
                 members.forEach(member => {
                     sendNotificationFS(
                         userName = req.user.name,
                         body = `đã đánh dấu công việc ${task.title} hoàn thành`,
-                        avatar = req.user.avatar,
-                        to = member.user.toString(),
+                        avatar = user.avatar,
+                        to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
 
                     sendNotificationToMultipleUsers(tokens, {
+                        title: req.user.name,
+                        body: `đã đánh dấu công việc ${task.title} hoàn thành`,
+                    }, {
                         userName: req.user.name,
                         body: `đã đánh dấu công việc ${task.title} hoàn thành`,
-                        avatar: req.user.avatar,
+                        avatar: user.avatar,
                     });
                 });
             }
@@ -214,15 +246,18 @@ const updateTaskStatus = async (req, res) => {
                     sendNotificationFS(
                         userName = req.user.name,
                         body = `đã duyệt công việc ${task.title} hoàn thành`,
-                        avatar = req.user.avatar,
-                        to = member.user.toString(),
+                        avatar = user.avatar,
+                        to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
 
                     sendNotificationToMultipleUsers(tokens, {
+                        title: req.user.name,
+                        body: `đã duyệt công việc ${task.title} hoàn thành`,
+                    }, {
                         userName: req.user.name,
                         body: `đã duyệt công việc ${task.title} hoàn thành`,
-                        avatar: req.user.avatar,
+                        avatar: user.avatar,
                     });
                 });
             } else if (status === 'in-progress') {
@@ -230,15 +265,18 @@ const updateTaskStatus = async (req, res) => {
                     sendNotificationFS(
                         userName = req.user.name,
                         body = `đã yêu cầu làm lại công việc ${task.title}`,
-                        avatar = req.user.avatar,
-                        to = member.user.toString(),
+                        avatar = user.avatar,
+                        to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
 
                     sendNotificationToMultipleUsers(tokens, {
+                        title: req.user.name,
+                        body: `đã yêu cầu làm lại công việc ${task.title}`,
+                    }, {
                         userName: req.user.name,
                         body: `đã yêu cầu làm lại công việc ${task.title}`,
-                        avatar: req.user.avatar,
+                        avatar: user.avatar,
                     });
                 });
             }
@@ -248,34 +286,42 @@ const updateTaskStatus = async (req, res) => {
                     sendNotificationFS(
                         userName = req.user.name,
                         body = `đã yêu cầu làm lại công việc ${task.title}`,
-                        avatar = req.user.avatar,
-                        to = member.user.toString(),
+                        avatar = user.avatar,
+                        to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
 
                     sendNotificationToMultipleUsers(tokens, {
+                        title: req.user.name,
+                        body: `đã yêu cầu làm lại công việc ${task.title}`,
+                    }, {
                         userName: req.user.name,
                         body: `đã yêu cầu làm lại công việc ${task.title}`,
-                        avatar: req.user.avatar,
+                        avatar: user.avatar,
                     });
                 });
             }
-        } else if (status === 'paused') {
-            members.forEach(member => {
-                sendNotificationFS(
-                    userName = req.user.name,
-                    body = `đã tạm dừng công việc ${task.title}`,
-                    avatar = req.user.avatar,
-                    to = member.user.toString(),
-                    activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
-                );
+        } else if (task.status === 'paused') {
+            if (status === 'in-progress') {
+                members.forEach(member => {
+                    sendNotificationFS(
+                        userName = req.user.name,
+                        body = `đã tiếp tục công việc ${task.title}`,
+                        avatar = user.avatar,
+                        to = member.user._id.toString(),
+                        activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+                    );
 
-                sendNotificationToMultipleUsers(tokens, {
-                    userName: req.user.name,
-                    body: `đã tạm dừng công việc ${task.title}`,
-                    avatar: req.user.avatar,
+                    sendNotificationToMultipleUsers(tokens, {
+                        title: req.user.name,
+                        body: `đã tiếp tục công việc ${task.title}`,
+                    }, {
+                        userName: req.user.name,
+                        body: `đã tiếp tục công việc ${task.title}`,
+                        avatar: user.avatar,
+                    });
                 });
-            });
+            }
         }
 
         task.status = status;
@@ -454,6 +500,9 @@ const addAssigneeToTask = async (req, res) => {
         );
 
         sendNotificationToMultipleUsers([user.deviceToken], {
+            title: user.name,
+            body: `đã thêm bạn vào công việc ${task.title}`,
+        }, {
             userName: user.name,
             body: `đã thêm bạn vào công việc ${task.title}`,
             avatar: user.avatar,
@@ -632,15 +681,18 @@ const toggleSubTaskCompletion = async (req, res) => {
             sendNotificationFS(
                 userName = req.user.name,
                 body = `đã đánh dấu ${subTask.completed ? 'hoàn thành' : 'chưa hoàn thành'} đầu việc ${subTask.title}`,
-                avatar = req.user.avatar,
+                avatar = user.avatar,
                 to = task.user._id.toString(),
                 activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
             );
 
             sendNotificationToMultipleUsers([task.user.deviceToken], {
+                title: req.user.name,
+                body: `đã đánh dấu ${subTask.completed ? 'hoàn thành' : 'chưa hoàn thành'} đầu việc ${subTask.title}`,
+            }, {
                 userName: req.user.name,
                 body: `đã đánh dấu ${subTask.completed ? 'hoàn thành' : 'chưa hoàn thành'} đầu việc ${subTask.title}`,
-                avatar: req.user.avatar,
+                avatar: user.avatar,
             });
         }
 
@@ -796,20 +848,24 @@ const addCommentToTask = async (req, res) => {
 
         const members = task.assigness.filter(assignee => assignee.user._id.toString() !== req.user.id);
         const tokens = members.map(member => member.user.deviceToken);
+        const user = await User.findById(req.user.id);
 
         members.forEach(member => {
             sendNotificationFS(
                 userName = req.user.name,
                 body = `đã bình luận trong công việc ${task.title}`,
-                avatar = req.user.avatar,
+                avatar = user.avatar,
                 to = member.user.toString(),
                 activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
             );
 
             sendNotificationToMultipleUsers(tokens, {
+                title: req.user.name,
+                body: `đã bình luận trong công việc ${task.title}`,
+            }, {
                 userName: req.user.name,
                 body: `đã bình luận trong công việc ${task.title}`,
-                avatar: req.user.avatar,
+                avatar: user.avatar,
             });
         });
 

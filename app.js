@@ -8,7 +8,6 @@ const apiRoutes = require('./routers/apiRoutes');
 const { confirmMember } = require('./controllers/projectController');
 const app = express();
 const path = require('path');
-const { sendNotificationToMultipleUsers } = require('./utils/firebaseUtils');
 
 app.use(cors());
 app.use(morgan('dev'));

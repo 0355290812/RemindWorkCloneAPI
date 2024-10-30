@@ -109,10 +109,31 @@ const updateDeviceToken = async (req, res) => {
     }
 }
 
+const changeAvatar = async (req, res) => {
+    const { id } = req.user;
+    const { avatar } = req.body;
+
+    try {
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Người dùng không tồn tại' });
+        }
+
+        user.avatar = avatar;
+        await user.save();
+        res.json({ message: 'Cập nhật ảnh đại diện thành công' });
+    }
+    catch (e) {
+        console.error(e);
+    }
+}
+
 module.exports = {
     changePassword,
     getUsers,
     getInformation,
     changeInformation,
-    updateDeviceToken
+    updateDeviceToken,
+    changeAvatar
 };
