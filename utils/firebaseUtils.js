@@ -8,7 +8,7 @@ const sendNotificationToMultipleUsers = async (deviceTokens, notificationPayload
             return;
         }
         deviceTokens.forEach(async (token) => {
-            await admin.messaging().send({
+            token && await admin.messaging().send({
                 token: token,
                 notification: notificationPayload,
                 data: dataPayload

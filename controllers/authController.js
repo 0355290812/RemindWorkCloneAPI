@@ -47,7 +47,7 @@ const register = async (req, res) => {
         });
 
         const project = await Project.create({
-            title: 'Dự án mẫu',
+            title: 'Dự án mẫu của ' + user.name,
             description: 'Đây là dự án mẫu để làm quen với ứng dụng',
             members: [{ user: user._id, role: 'admin', status: 'accepted' }],
             startDate: new Date(),

@@ -200,7 +200,7 @@ const updateMemberRoleInProject = async (req, res) => {
             activeLink = `${process.env.CLIENT_URL}/projects/${project._id}`
         );
 
-        sendNotificationToMultipleUsers([user.deviceToken], {
+        user.deviceToken && sendNotificationToMultipleUsers([user.deviceToken], {
             title: req.user.name,
             body: `đã cập nhật quyền của bạn trong dự án ${project.title} thành ${role === 'admin' ? 'trưởng dự án' : (role === 'teamlead' ? 'trưởng nhóm' : 'nhân viên')}`,
         }, {
@@ -249,6 +249,13 @@ const removeMemberFromProject = async (req, res) => {
             });
         }
 
+        const tasks = await Task.find({ project: projectId, 'assigness.user': userId });
+
+        for (let task of tasks) {
+            task.assigness = task.assigness.filter(assignee => assignee.user.toString() !== userId);
+            await task.save();
+        }
+
         project.members.splice(memberIndex, 1);
         await project.save();
 
@@ -262,7 +269,7 @@ const removeMemberFromProject = async (req, res) => {
             activeLink = `${process.env.CLIENT_URL}/home`
         );
 
-        sendNotificationToMultipleUsers([user.deviceToken], {
+        user.deviceToken && sendNotificationToMultipleUsers([user.deviceToken], {
             title: req.user.name,
             body: `đã xoá bạn khỏi dự án ${project.title}`,
         }, {
@@ -287,6 +294,12 @@ const deleteProject = async (req, res) => {
 
     try {
         const project = await Project.findByIdAndDelete(projectId);
+
+        const tasks = await Task.find({ project: projectId });
+
+        for (let task of tasks) {
+            await task.remove();
+        }
 
         if (!project) {
             return res.status(404).json({

@@ -161,6 +161,7 @@ const updateTaskStatus = async (req, res) => {
 
         const members = task.assigness.filter(assignee => assignee.user._id.toString() !== userId);
         const tokens = members.map(member => member.user.deviceToken);
+        tokens = tokens.filter(token => token);
 
         if (status === 'paused') {
             members.forEach(member => {
@@ -171,15 +172,14 @@ const updateTaskStatus = async (req, res) => {
                     to = member.user._id.toString(),
                     activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                 );
-
-                sendNotificationToMultipleUsers(tokens, {
-                    title: req.user.name,
-                    body: `đã tạm dừng công việc ${task.title}`,
-                }, {
-                    userName: req.user.name,
-                    body: `đã tạm dừng công việc ${task.title}`,
-                    avatar: user.avatar,
-                });
+            });
+            tokens.length > 0 && sendNotificationToMultipleUsers(tokens, {
+                title: req.user.name,
+                body: `đã tạm dừng công việc ${task.title}`,
+            }, {
+                userName: req.user.name,
+                body: `đã tạm dừng công việc ${task.title}`,
+                avatar: user.avatar,
             });
         } else if (task.status === 'pending') {
             members.forEach(member => {
@@ -190,15 +190,14 @@ const updateTaskStatus = async (req, res) => {
                     to = member.user._id.toString(),
                     activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                 );
-
-                sendNotificationToMultipleUsers(tokens, {
-                    title: req.user.name,
-                    body: `đã chuyển trạng thái công việc ${task.title} thành đang thưc hiện`,
-                }, {
-                    userName: req.user.name,
-                    body: `đã chuyển trạng thái công việc ${task.title} thành đang thưc hiện`,
-                    avatar: user.avatar,
-                });
+            });
+            tokens.length > 0 && sendNotificationToMultipleUsers(tokens, {
+                title: req.user.name,
+                body: `đã chuyển trạng thái công việc ${task.title} thành đang thưc hiện`,
+            }, {
+                userName: req.user.name,
+                body: `đã chuyển trạng thái công việc ${task.title} thành đang thưc hiện`,
+                avatar: user.avatar,
             });
         } else if (task.status === 'in-progress') {
             if (status === 'waiting-for-approval') {
@@ -210,16 +209,15 @@ const updateTaskStatus = async (req, res) => {
                         to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
-
-                    sendNotificationToMultipleUsers(tokens, {
-                        title: req.user.name,
-                        body: `đã chuyển trạng thái công việc ${task.title} thành chờ phê duyệt hoàn thành`,
-                    }, {
-                        userName: req.user.name,
-                        body: `đã chuyển trạng thái công việc ${task.title} thành chờ phê duyệt hoàn thành`,
-                        avatar: user.avatar,
-                    }, {});
                 });
+                tokens.length > 0 && sendNotificationToMultipleUsers(tokens, {
+                    title: req.user.name,
+                    body: `đã chuyển trạng thái công việc ${task.title} thành chờ phê duyệt hoàn thành`,
+                }, {
+                    userName: req.user.name,
+                    body: `đã chuyển trạng thái công việc ${task.title} thành chờ phê duyệt hoàn thành`,
+                    avatar: user.avatar,
+                }, {});
             } else if (status === 'completed') {
                 members.forEach(member => {
                     sendNotificationFS(
@@ -229,15 +227,14 @@ const updateTaskStatus = async (req, res) => {
                         to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
-
-                    sendNotificationToMultipleUsers(tokens, {
-                        title: req.user.name,
-                        body: `đã đánh dấu công việc ${task.title} hoàn thành`,
-                    }, {
-                        userName: req.user.name,
-                        body: `đã đánh dấu công việc ${task.title} hoàn thành`,
-                        avatar: user.avatar,
-                    });
+                });
+                tokens.length > 0 && sendNotificationToMultipleUsers(tokens, {
+                    title: req.user.name,
+                    body: `đã đánh dấu công việc ${task.title} hoàn thành`,
+                }, {
+                    userName: req.user.name,
+                    body: `đã đánh dấu công việc ${task.title} hoàn thành`,
+                    avatar: user.avatar,
                 });
             }
         } else if (task.status === 'waiting-for-approval') {
@@ -250,15 +247,14 @@ const updateTaskStatus = async (req, res) => {
                         to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
-
-                    sendNotificationToMultipleUsers(tokens, {
-                        title: req.user.name,
-                        body: `đã duyệt công việc ${task.title} hoàn thành`,
-                    }, {
-                        userName: req.user.name,
-                        body: `đã duyệt công việc ${task.title} hoàn thành`,
-                        avatar: user.avatar,
-                    });
+                });
+                tokens.length > 0 && sendNotificationToMultipleUsers(tokens, {
+                    title: req.user.name,
+                    body: `đã duyệt công việc ${task.title} hoàn thành`,
+                }, {
+                    userName: req.user.name,
+                    body: `đã duyệt công việc ${task.title} hoàn thành`,
+                    avatar: user.avatar,
                 });
             } else if (status === 'in-progress') {
                 members.forEach(member => {
@@ -269,15 +265,14 @@ const updateTaskStatus = async (req, res) => {
                         to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
-
-                    sendNotificationToMultipleUsers(tokens, {
-                        title: req.user.name,
-                        body: `đã yêu cầu làm lại công việc ${task.title}`,
-                    }, {
-                        userName: req.user.name,
-                        body: `đã yêu cầu làm lại công việc ${task.title}`,
-                        avatar: user.avatar,
-                    });
+                });
+                tokens.length > 0 && sendNotificationToMultipleUsers(tokens, {
+                    title: req.user.name,
+                    body: `đã yêu cầu làm lại công việc ${task.title}`,
+                }, {
+                    userName: req.user.name,
+                    body: `đã yêu cầu làm lại công việc ${task.title}`,
+                    avatar: user.avatar,
                 });
             }
         } else if (task.status === 'completed') {
@@ -290,15 +285,14 @@ const updateTaskStatus = async (req, res) => {
                         to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
-
-                    sendNotificationToMultipleUsers(tokens, {
-                        title: req.user.name,
-                        body: `đã yêu cầu làm lại công việc ${task.title}`,
-                    }, {
-                        userName: req.user.name,
-                        body: `đã yêu cầu làm lại công việc ${task.title}`,
-                        avatar: user.avatar,
-                    });
+                });
+                tokens.length > 0 && sendNotificationToMultipleUsers(tokens, {
+                    title: req.user.name,
+                    body: `đã yêu cầu làm lại công việc ${task.title}`,
+                }, {
+                    userName: req.user.name,
+                    body: `đã yêu cầu làm lại công việc ${task.title}`,
+                    avatar: user.avatar,
                 });
             }
         } else if (task.status === 'paused') {
@@ -311,15 +305,14 @@ const updateTaskStatus = async (req, res) => {
                         to = member.user._id.toString(),
                         activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
                     );
-
-                    sendNotificationToMultipleUsers(tokens, {
-                        title: req.user.name,
-                        body: `đã tiếp tục công việc ${task.title}`,
-                    }, {
-                        userName: req.user.name,
-                        body: `đã tiếp tục công việc ${task.title}`,
-                        avatar: user.avatar,
-                    });
+                });
+                tokens.length > 0 && sendNotificationToMultipleUsers(tokens, {
+                    title: req.user.name,
+                    body: `đã tiếp tục công việc ${task.title}`,
+                }, {
+                    userName: req.user.name,
+                    body: `đã tiếp tục công việc ${task.title}`,
+                    avatar: user.avatar,
                 });
             }
         }
@@ -499,7 +492,7 @@ const addAssigneeToTask = async (req, res) => {
             activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
         );
 
-        sendNotificationToMultipleUsers([user.deviceToken], {
+        user.deviceToken && sendNotificationToMultipleUsers([user.deviceToken], {
             title: user.name,
             body: `đã thêm bạn vào công việc ${task.title}`,
         }, {
@@ -686,7 +679,7 @@ const toggleSubTaskCompletion = async (req, res) => {
                 activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
             );
 
-            sendNotificationToMultipleUsers([task.user.deviceToken], {
+            task.user.deviceToken && sendNotificationToMultipleUsers([task.user.deviceToken], {
                 title: req.user.name,
                 body: `đã đánh dấu ${subTask.completed ? 'hoàn thành' : 'chưa hoàn thành'} đầu việc ${subTask.title}`,
             }, {
@@ -765,13 +758,34 @@ const deleteTask = async (req, res) => {
     const { taskId } = req.params;
 
     try {
-        const task = await Task.findByIdAndDelete(taskId);
+        const task = await Task.findByIdAndDelete(taskId).populate('assigness.user');
 
         if (!task) {
             return res.status(404).json({
                 message: 'Task không tìm thấy'
             });
         }
+        const diffAssigness = task.assigness.filter(assignee => assignee.user._id.toString() !== req.user.id);
+        const tokens = diffAssigness.map(assignee => assignee.user.deviceToken);
+        tokens = tokens.filter(token => token);
+
+        diffAssigness.forEach(assignee => {
+            sendNotificationFS(
+                userName = req.user.name,
+                body = `đã xoá công việc ${task.title}`,
+                avatar = req.user.avatar,
+                to = assignee.user._id.toString(),
+                activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+            );
+        });
+        tokens.length > 0 && sendNotificationToMultipleUsers(tokens, {
+            title: req.user.name,
+            body: `đã xoá công việc ${task.title}`,
+        }, {
+            userName: req.user.name,
+            body: `đã xoá công việc ${task.title}`,
+            avatar: req.user.avatar,
+        });
 
         res.status(200).json({
             message: 'Task đã được xoá thành công'
@@ -811,6 +825,25 @@ const deleteMemberFromTask = async (req, res) => {
             timestamps: new Date()
         });
         task.assigness.splice(assigneeIndex, 1);
+
+        const user = await User.findById(req.user.id);
+
+        sendNotificationFS(
+            userName = req.user.name,
+            body = `đã bạn ra khỏi công việc ${task.title}`,
+            avatar = req.user.avatar,
+            to = user._id.toString(),
+            activeLink = `${process.env.CLIENT_URL}/private-works/${task._id}`
+        );
+
+        user.deviceToken && sendNotificationToMultipleUsers([user.deviceToken], {
+            title: req.user.name,
+            body: `đã xoá bạn ra khỏi công việc ${task.title}`,
+        }, {
+            userName: req.user.name,
+            body: `đã xoá bạn ra khỏi công việc ${task.title}`,
+            avatar: req.user.avatar,
+        });
 
         await task.save();
 
