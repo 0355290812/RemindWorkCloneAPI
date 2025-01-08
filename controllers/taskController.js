@@ -4,8 +4,20 @@ const path = require('path');
 const fs = require('fs');
 const User = require('../models/user');
 const { sendNotificationToMultipleUsers, sendNotificationFS } = require('../utils/firebaseUtils');
+const { body, validationResult } = require('express-validator');
 
 const createTask = async (req, res) => {
+    await body('title').notEmpty().run(req);
+    await body('description').notEmpty().run(req);
+    await body('projectId').notEmpty().run(req);
+    await body('startDate').optional().isISO8601().toDate().run(req);
+    await body('endDate').optional().isISO8601().toDate().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { title, description, projectId } = req.body;
     let { startDate, endDate } = req.body;
 
@@ -92,6 +104,16 @@ const createTask = async (req, res) => {
 }
 
 const updateTask = async (req, res) => {
+    await body('title').notEmpty().run(req);
+    await body('description').notEmpty().run(req);
+    await body('startDate').optional().isISO8601().toDate().run(req);
+    await body('endDate').optional().isISO8601().toDate().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { taskId } = req.params;
     const { title, description, startDate, endDate } = req.body;
 
@@ -160,7 +182,7 @@ const updateTaskStatus = async (req, res) => {
         }
 
         const members = task.assigness.filter(assignee => assignee.user._id.toString() !== userId);
-        const tokens = members.map(member => member.user.deviceToken);
+        let tokens = members.map(member => member.user.deviceToken);
         tokens = tokens.filter(token => token);
 
         if (status === 'paused') {
@@ -433,6 +455,13 @@ const getTask = async (req, res) => {
 }
 
 const addAssigneeToTask = async (req, res) => {
+    await body('userId').notEmpty().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { taskId } = req.params;
     const { userId } = req.body;
 
@@ -515,6 +544,14 @@ const addAssigneeToTask = async (req, res) => {
 };
 
 const addSubTask = async (req, res) => {
+    await body('title').notEmpty().run(req);
+    await body('dueDate').optional().isISO8601().toDate().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { taskId, assigneeId } = req.params;
     const { title, dueDate } = req.body;
 

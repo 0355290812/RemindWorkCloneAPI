@@ -93,3 +93,8 @@ Thumbs.db
 *.iml
 
 serviceAccountKey.json
+
+my_openssl.cnf
+private.key
+request.csr
+certificate.crt

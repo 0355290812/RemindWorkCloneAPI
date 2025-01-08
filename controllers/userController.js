@@ -1,7 +1,16 @@
 const User = require('../models/user');
 const { comparePasswords, hashPassword } = require('../utils/authUtils');
+const { body, validationResult } = require('express-validator');
 
 const changePassword = async (req, res) => {
+    await body('oldPassword').isLength({ min: 6 }).run(req);
+    await body('newPassword').isLength({ min: 6 }).run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { oldPassword, newPassword } = req.body;
     const { email } = req.user;
 
@@ -58,6 +67,11 @@ const getInformation = async (req, res) => {
 
     try {
         const user = await User.findById(id).select('-passwordHash');
+
+        if (!user) {
+            return res.status(404).json({ message: 'Người dùng không tồn tại' });
+        }
+
         res.json(user);
     } catch (e) {
         console.error(e);
@@ -66,6 +80,13 @@ const getInformation = async (req, res) => {
 }
 
 const changeInformation = async (req, res) => {
+    await body('name').optional().notEmpty().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { name } = req.body;
     const { id } = req.user;
 
@@ -110,6 +131,13 @@ const updateDeviceToken = async (req, res) => {
 }
 
 const changeAvatar = async (req, res) => {
+    await body('avatar').notEmpty().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { id } = req.user;
     const { avatar } = req.body;
 

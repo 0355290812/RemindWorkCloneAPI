@@ -1,4 +1,8 @@
 const mongoose = require('mongoose');
+const encrypt = require('mongoose-encryption');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 const taskSchema = new mongoose.Schema({
     title: {
@@ -114,6 +118,19 @@ const taskSchema = new mongoose.Schema({
         },
     }],
 }, { timestamps: true });
+
+const encKey = process.env.ENCRYPTION_KEY;
+const sigKey = process.env.SIGNING_KEY;
+
+if (!encKey || !sigKey) {
+    throw new Error('Encryption and signing keys are required');
+}
+
+taskSchema.plugin(encrypt, {
+    encryptionKey: encKey,
+    signingKey: sigKey,
+    encryptedFields: ['title', 'description']
+});
 
 const Task = mongoose.model('Task', taskSchema);
 

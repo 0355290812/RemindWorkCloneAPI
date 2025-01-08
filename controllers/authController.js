@@ -3,8 +3,17 @@ const Task = require('../models/task');
 const Project = require('../models/project');
 const { comparePasswords, createJWT, hashPassword } = require('../utils/authUtils');
 const crypto = require('crypto');
+const { body, validationResult } = require('express-validator');
 
 const login = async (req, res) => {
+    await body('email').isEmail().trim().escape().run(req);
+    await body('password').isLength({ min: 6 }).trim().escape().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 
@@ -28,6 +37,14 @@ const login = async (req, res) => {
 }
 
 const register = async (req, res) => {
+    await body('email').isEmail().trim().escape().run(req);
+    await body('password').isLength({ min: 6 }).trim().escape().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { email, password } = req.body;
     try {
         const existingUser = await User.findOne({ email });
@@ -54,7 +71,7 @@ const register = async (req, res) => {
             endDate: new Date(new Date().setDate(new Date().getDate() + 7))
         });
 
-        const task = await Task.create({
+        await Task.create({
             title: 'Công việc mẫu',
             user: user._id,
             description: 'Đây là công việc mẫu để làm quen với ứng dụng',

@@ -4,8 +4,19 @@ const User = require('../models/user');
 const nodemailer = require('nodemailer');
 const Task = require('../models/task');
 const { sendNotificationFS, sendNotificationToMultipleUsers } = require('../utils/firebaseUtils');
+const { body, validationResult } = require('express-validator');
 
 const createProject = async (req, res) => {
+    await body('title').notEmpty().run(req);
+    await body('description').notEmpty().run(req);
+    await body('startDate').optional().isISO8601().toDate().run(req);
+    await body('endDate').optional().isISO8601().toDate().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { title, description, startDate, endDate } = req.body;
 
     try {
@@ -47,6 +58,16 @@ const getProjects = async (req, res) => {
 
 
 const updateProject = async (req, res) => {
+    await body('title').notEmpty().run(req);
+    await body('description').notEmpty().run(req);
+    await body('startDate').optional().isISO8601().toDate().run(req);
+    await body('endDate').optional().isISO8601().toDate().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { projectId } = req.params;
     const { title, description, startDate, endDate } = req.body;
 
@@ -88,6 +109,14 @@ const updateProject = async (req, res) => {
 };
 
 const addMembersToProject = async (req, res) => {
+    await body('userIds').isArray().run(req);
+    await body('userIds.*').notEmpty().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { projectId } = req.params;
     const { userIds, role = 'employee' } = req.body;
 
@@ -145,7 +174,6 @@ const addMembersToProject = async (req, res) => {
                 });
             }
         }
-
         res.status(200).json({
             project: updatedProject,
             message: `${membersToAdd.length} thành viên đã được thêm vào dự án`
@@ -160,6 +188,13 @@ const addMembersToProject = async (req, res) => {
 
 
 const updateMemberRoleInProject = async (req, res) => {
+    await body('role').notEmpty().run(req);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { projectId, userId } = req.params;
     const { role } = req.body;
 
