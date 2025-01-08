@@ -98,3 +98,4 @@ my_openssl.cnf
 private.key
 request.csr
 certificate.crt
+generateKeys.js
